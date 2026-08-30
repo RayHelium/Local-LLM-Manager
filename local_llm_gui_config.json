@@ -1,0 +1,22 @@
+{
+  "LLAMA_DIR": "D:\\localAI\\llama-b10632-bin-win-cuda-13.3-x64",
+  "MODEL_PATH": "D:\\localAI\\Qwen3.8-27B\\Qwen3.8-27B-GGUF\\Qwen3.8-27B-NVFP4-MTP-MID-HIGH.gguf",
+  "MMPROJ_PATH": "D:\\localAI\\Qwen3.8-27B\\Qwen3.8-27B-GGUF\\mmproj-F16.gguf",
+  "CHAT_TEMPLATE": "D:\\localAI\\Qwen3.8-27B\\chat_template.jinja",
+  "HOST": "0.0.0.0",
+  "CHECK_HOST": "127.0.0.1",
+  "PORT": "8080",
+  "CTX_SIZE": "200000",
+  "ALIAS": "Qwen3.8-27B",
+  "THREADS": "16",
+  "TBATCH": "16",
+  "BATCH": "1024",
+  "UBATCH": "1024",
+  "TENSOR_SPLIT": "1,1",
+  "SPEC_TYPE": "draft-mtp",
+  "SPEC_DRAFT_N_MAX": "2",
+  "SPEC_DRAFT_P_MIN": "0.75",
+  "START_TIMEOUT_S": "180",
+  "API_KEY": "RAY-HELIUM",
+  "TEMPERATURE": "0.8"
+}
