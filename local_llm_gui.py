@@ -50,6 +50,7 @@ GROUP_MODEL = [
     ("CHAT_TEMPLATE", "Chat Template", "Jinja template path (optional)"),
     ("CTX_SIZE", "Context Size", "Context size"),
     ("TEMPERATURE", "Temperature", "Sampling temperature"),
+    ("REASONING_EFFORT", "Reasoning Effort", "--reasoning-effort, e.g. medium (optional)"),
 ]
 GROUP_ADVANCED = [
     ("LLAMA_DIR", "llama Dir", "Directory of llama-server.exe (required)"),
@@ -88,6 +89,7 @@ DEFAULT_VALUES = {
     "START_TIMEOUT_S": "180",
     "API_KEY": "",
     "TEMPERATURE": "0.8",
+    "REASONING_EFFORT": "medium",
 }
 
 
@@ -800,6 +802,8 @@ class LLMManagerGUI:
             cmd += ["--spec-draft-n-max", v["SPEC_DRAFT_N_MAX"]]
         if v["SPEC_DRAFT_P_MIN"]:
             cmd += ["--spec-draft-p-min", v["SPEC_DRAFT_P_MIN"]]
+        if v["REASONING_EFFORT"]:
+            cmd += ["--reasoning-effort", v["REASONING_EFFORT"]]
         if v["API_KEY"]:
             cmd += ["--api-key", v["API_KEY"]]
         return cmd

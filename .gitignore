@@ -1,0 +1,13 @@
+# PyInstaller 构建产物
+build/
+dist/
+*.spec
+LocalLLMManager.exe
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 本地运行配置（用户本地保存的参数）
+local_llm_gui_config.json
