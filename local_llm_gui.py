@@ -48,9 +48,11 @@ GROUP_MODEL = [
     ("MODEL_PATH", "Model", "GGUF model path (required)"),
     ("MMPROJ_PATH", "Vision Proj", "mmproj file path (optional)"),
     ("CHAT_TEMPLATE", "Chat Template", "Jinja template path (optional)"),
+    ("CHAT_TEMPLATE_KWARGS", "Template Kwargs", "--chat-template-kwargs, JSON (optional)"),
     ("CTX_SIZE", "Context Size", "Context size"),
     ("TEMPERATURE", "Temperature", "Sampling temperature"),
-    ("REASONING_EFFORT", "Reasoning Effort", "--reasoning-effort, e.g. medium (optional)"),
+    ("IMAGE_MIN_TOKENS", "Image Min Tokens", "--image-min-tokens (optional)"),
+    ("MAX_TOKENS", "Max Tokens", "--max-tokens, max output tokens (optional)"),
 ]
 GROUP_ADVANCED = [
     ("LLAMA_DIR", "llama Dir", "Directory of llama-server.exe (required)"),
@@ -73,6 +75,7 @@ DEFAULT_VALUES = {
     # 可选：视觉投影 / 聊天模板（留空则不启用）
     "MMPROJ_PATH": "",
     "CHAT_TEMPLATE": "",
+    "CHAT_TEMPLATE_KWARGS": "{\"enable_thinking\":true,\"reasoning_effort\":\"medium\",\"preserve_thinking\":true}",
     "HOST": "0.0.0.0",
     "CHECK_HOST": "127.0.0.1",
     "PORT": "8080",
@@ -89,7 +92,8 @@ DEFAULT_VALUES = {
     "START_TIMEOUT_S": "180",
     "API_KEY": "",
     "TEMPERATURE": "0.8",
-    "REASONING_EFFORT": "medium",
+    "IMAGE_MIN_TOKENS": "1024",
+    "MAX_TOKENS": "",
 }
 
 
@@ -359,9 +363,10 @@ class LLMManagerGUI:
                                    font=(self.ui_font, 10, "bold"),
                                    foreground=COLORS["accent"], width=22, anchor="e")
         self.tps_label.pack(side=tk.RIGHT, padx=(0, 16))
+        # 宽度 20：可容纳 "Tokens: 100,000,000"（一亿级 token 数）
         self.tok_label = ttk.Label(header, text="Tokens: 0", style="Dim.TLabel",
                                    font=(self.ui_font, 10, "bold"),
-                                   foreground=COLORS["fg_dim"], width=14, anchor="e")
+                                   foreground=COLORS["fg_dim"], width=20, anchor="e")
         self.tok_label.pack(side=tk.RIGHT, padx=(0, 16))
         self.url_label = ttk.Label(header, text="", style="Dim.TLabel")
         self.url_label.pack(side=tk.RIGHT, padx=(0, 16))
@@ -792,6 +797,8 @@ class LLMManagerGUI:
             cmd += ["--mmproj", v["MMPROJ_PATH"]]
         if v["CHAT_TEMPLATE"]:
             cmd += ["--chat-template-file", v["CHAT_TEMPLATE"]]
+        if v["CHAT_TEMPLATE_KWARGS"]:
+            cmd += ["--chat-template-kwargs", v["CHAT_TEMPLATE_KWARGS"]]
         if v["ALIAS"]:
             cmd += ["--alias", v["ALIAS"]]
         if v["TENSOR_SPLIT"]:
@@ -802,8 +809,10 @@ class LLMManagerGUI:
             cmd += ["--spec-draft-n-max", v["SPEC_DRAFT_N_MAX"]]
         if v["SPEC_DRAFT_P_MIN"]:
             cmd += ["--spec-draft-p-min", v["SPEC_DRAFT_P_MIN"]]
-        if v["REASONING_EFFORT"]:
-            cmd += ["--reasoning-effort", v["REASONING_EFFORT"]]
+        if v["IMAGE_MIN_TOKENS"]:
+            cmd += ["--image-min-tokens", v["IMAGE_MIN_TOKENS"]]
+        if v["MAX_TOKENS"]:
+            cmd += ["--max-tokens", v["MAX_TOKENS"]]
         if v["API_KEY"]:
             cmd += ["--api-key", v["API_KEY"]]
         return cmd
@@ -865,7 +874,7 @@ class LLMManagerGUI:
             mt = re.search(r'(\d+)\s*tokens', line)
             if mt:
                 self.total_tokens += int(mt.group(1))
-                self.tok_label.configure(text=f"Tokens: {self.total_tokens}")
+                self.tok_label.configure(text=f"Tokens: {self.total_tokens:,}")
 
         if threading.current_thread() is threading.main_thread():
             _do()
