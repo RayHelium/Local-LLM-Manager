@@ -48,8 +48,10 @@ GROUP_MODEL = [
     ("MODEL_PATH", "Model", "GGUF model path (required)"),
     ("MMPROJ_PATH", "Vision Proj", "mmproj file path (optional)"),
     ("CHAT_TEMPLATE", "Chat Template", "Jinja template path (optional)"),
-    ("CHAT_TEMPLATE_KWARGS", "Template Kwargs", "--chat-template-kwargs, JSON (optional)"),
     ("CTX_SIZE", "Context Size", "Context size"),
+    ("REASONING", "Reasoning", "--reasoning, on/off (optional)"),
+    ("REASONING_EFFORT", "Reasoning Effort", "--reasoning-effort, e.g. low (optional)"),
+    ("REASONING_PRESERVE", "Reasoning Preserve", "--reasoning-preserve, on/off (optional)"),
     ("TEMPERATURE", "Temperature", "Sampling temperature"),
     ("IMAGE_MIN_TOKENS", "Image Min Tokens", "--image-min-tokens (optional)"),
     ("MAX_TOKENS", "Max Tokens", "--max-tokens, max output tokens (optional)"),
@@ -64,6 +66,8 @@ GROUP_ADVANCED = [
     ("SPEC_TYPE", "Spec Type", "--spec-type, e.g. draft-mtp (optional)"),
     ("SPEC_DRAFT_N_MAX", "Spec Draft N-Max", "--spec-draft-n-max (optional)"),
     ("SPEC_DRAFT_P_MIN", "Spec Draft P-Min", "--spec-draft-p-min (optional)"),
+    ("SPEC_DRAFT_TYPE_K", "Spec Draft Type K", "--spec-draft-type-k, e.g. f16 (optional)"),
+    ("SPEC_DRAFT_TYPE_V", "Spec Draft Type V", "--spec-draft-type-v, e.g. f16 (optional)"),
     ("START_TIMEOUT_S", "Start Timeout (s)", "Timeout waiting for ready"),
     ("API_KEY", "API Key", "API access key"),
 ]
@@ -75,7 +79,6 @@ DEFAULT_VALUES = {
     # 可选：视觉投影 / 聊天模板（留空则不启用）
     "MMPROJ_PATH": "",
     "CHAT_TEMPLATE": "",
-    "CHAT_TEMPLATE_KWARGS": "{\"enable_thinking\":true,\"reasoning_effort\":\"medium\",\"preserve_thinking\":true}",
     "HOST": "0.0.0.0",
     "CHECK_HOST": "127.0.0.1",
     "PORT": "8080",
@@ -89,8 +92,13 @@ DEFAULT_VALUES = {
     "SPEC_TYPE": "",
     "SPEC_DRAFT_N_MAX": "2",
     "SPEC_DRAFT_P_MIN": "0.6",
+    "SPEC_DRAFT_TYPE_K": "",
+    "SPEC_DRAFT_TYPE_V": "",
     "START_TIMEOUT_S": "180",
     "API_KEY": "",
+    "REASONING": "off",
+    "REASONING_EFFORT": "low",
+    "REASONING_PRESERVE": "",
     "TEMPERATURE": "0.8",
     "IMAGE_MIN_TOKENS": "1024",
     "MAX_TOKENS": "",
@@ -797,8 +805,6 @@ class LLMManagerGUI:
             cmd += ["--mmproj", v["MMPROJ_PATH"]]
         if v["CHAT_TEMPLATE"]:
             cmd += ["--chat-template-file", v["CHAT_TEMPLATE"]]
-        if v["CHAT_TEMPLATE_KWARGS"]:
-            cmd += ["--chat-template-kwargs", v["CHAT_TEMPLATE_KWARGS"]]
         if v["ALIAS"]:
             cmd += ["--alias", v["ALIAS"]]
         if v["TENSOR_SPLIT"]:
@@ -809,6 +815,18 @@ class LLMManagerGUI:
             cmd += ["--spec-draft-n-max", v["SPEC_DRAFT_N_MAX"]]
         if v["SPEC_DRAFT_P_MIN"]:
             cmd += ["--spec-draft-p-min", v["SPEC_DRAFT_P_MIN"]]
+        if v["SPEC_DRAFT_TYPE_K"]:
+            cmd += ["--spec-draft-type-k", v["SPEC_DRAFT_TYPE_K"]]
+        if v["SPEC_DRAFT_TYPE_V"]:
+            cmd += ["--spec-draft-type-v", v["SPEC_DRAFT_TYPE_V"]]
+        if v["REASONING"]:
+            cmd += ["--reasoning", v["REASONING"]]
+        if v["REASONING_EFFORT"]:
+            cmd += ["--reasoning-effort", v["REASONING_EFFORT"]]
+        if v["REASONING_PRESERVE"].lower() == "on":
+            cmd += ["--reasoning-preserve"]
+        elif v["REASONING_PRESERVE"].lower() == "off":
+            cmd += ["--no-reasoning-preserve"]
         if v["IMAGE_MIN_TOKENS"]:
             cmd += ["--image-min-tokens", v["IMAGE_MIN_TOKENS"]]
         if v["MAX_TOKENS"]:
