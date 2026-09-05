@@ -23,16 +23,16 @@ CONFIG_PATH = SCRIPT_DIR / "local_llm_gui_config.json"
 # 主题配色（深色现代风格）
 # ============================================================
 COLORS = {
-    "bg": "#ffffff",
-    "panel": "#f5f5f7",
-    "panel_light": "#e8e8ec",
-    "fg": "#1d1d1f",
-    "fg_dim": "#86868b",
-    "accent": "#0071e3",
+    "bg": "#1e1e22",
+    "panel": "#2a2a30",
+    "panel_light": "#3a3a42",
+    "fg": "#f2f2f5",
+    "fg_dim": "#9a9aa5",
+    "accent": "#4a9eff",
     "green": "#34c759",
-    "red": "#ff3b30",
-    "yellow": "#ff9500",
-    "entry_bg": "#ffffff",
+    "red": "#ff453a",
+    "yellow": "#ff9f0a",
+    "entry_bg": "#16161a",
 }
 
 # ============================================================
@@ -40,7 +40,7 @@ COLORS = {
 # ============================================================
 GROUP_BASE = [
     ("HOST", "Host", "Server listen address"),
-    ("CHECK_HOST", "Check Host", "IP for health check"),
+    ("CHECK_HOST", "Check Host", "IP for health check (optional, default 127.0.0.1)"),
     ("PORT", "Port", "Service port"),
     ("ALIAS", "Alias", "OpenAI-compatible alias"),
 ]
@@ -80,7 +80,7 @@ DEFAULT_VALUES = {
     "MMPROJ_PATH": "",
     "CHAT_TEMPLATE": "",
     "HOST": "0.0.0.0",
-    "CHECK_HOST": "127.0.0.1",
+    "CHECK_HOST": "",
     "PORT": "8080",
     "CTX_SIZE": "8192",
     "ALIAS": "",
@@ -348,7 +348,14 @@ class LLMManagerGUI:
         # 标题栏
         header = ttk.Frame(main)
         header.pack(fill=tk.X, pady=(0, 10))
-        ttk.Label(header, text="Local LLM Manager", style="Title.TLabel").pack(side=tk.LEFT)
+        # 左侧列：标题在上，URL 在下（避免右侧拥挤导致 URL 显示不全）
+        left_col = ttk.Frame(header)
+        left_col.pack(side=tk.LEFT, fill=tk.X)
+        ttk.Label(left_col, text="Local LLM Manager", style="Title.TLabel").pack(anchor="w")
+        self.url_label = ttk.Label(left_col, text="", style="Dim.TLabel",
+                                   font=(self.ui_font, 10, "bold"),
+                                   foreground=COLORS["fg_dim"], width=28, anchor="w")
+        self.url_label.pack(anchor="w", pady=(4, 0))
         self.lock_label = ttk.Label(header, text="", style="Dim.TLabel",
                                     font=(self.ui_font, 10, "bold"),
                                     foreground=COLORS["yellow"])
@@ -376,8 +383,6 @@ class LLMManagerGUI:
                                    font=(self.ui_font, 10, "bold"),
                                    foreground=COLORS["fg_dim"], width=20, anchor="e")
         self.tok_label.pack(side=tk.RIGHT, padx=(0, 16))
-        self.url_label = ttk.Label(header, text="", style="Dim.TLabel")
-        self.url_label.pack(side=tk.RIGHT, padx=(0, 16))
 
         # 主体：上方参数（单页滚动），下方日志
         body = ttk.Frame(main)
@@ -845,7 +850,7 @@ class LLMManagerGUI:
             cmd = self.build_command(v)
             self.append_log("Preparing to start llama-server ...")
             self.append_log("Command: " + " ".join(cmd))
-            self.url_label.configure(text=f"URL: http://{v['CHECK_HOST']}:{v['PORT']}")
+            self.url_label.configure(text=f"URL: http://{v['HOST']}:{v['PORT']}")
 
             self.process = subprocess.Popen(
                 cmd,
@@ -870,12 +875,12 @@ class LLMManagerGUI:
             self.append_log(f"Start failed: {exc}")
 
     def _tps_color(self, value):
-        # 速度越快越绿，越慢越红（0~100 t/s 区间内插值，白底用深色）
+        # 速度越快越绿，越慢越红（0~100 t/s 区间内插值，深底用亮色）
         t = max(0.0, min(1.0, value / 100.0))
-        # 深红 (cc0000) -> 深绿 (1a7f37)
-        r = int(0xcc + (0x1a - 0xcc) * t)
-        g = int(0x00 + (0x7f - 0x00) * t)
-        b = int(0x00 + (0x37 - 0x00) * t)
+        # 亮红 (ff453a) -> 亮绿 (34c759)
+        r = int(0xff + (0x34 - 0xff) * t)
+        g = int(0x45 + (0xc7 - 0x45) * t)
+        b = int(0x3a + (0x59 - 0x3a) * t)
         return f"#{r:02x}{g:02x}{b:02x}"
 
     def _parse_tps(self, line):
@@ -945,6 +950,7 @@ class LLMManagerGUI:
 
     def refresh_status(self):
         host = self.entries["CHECK_HOST"].get().strip() or "127.0.0.1"
+        display_host = self.entries["HOST"].get().strip() or host
         port = self.entries["PORT"].get().strip() or "8080"
         url = f"http://{host}:{port}/health"
         if self.process is not None and self.process.poll() is None:
@@ -953,7 +959,7 @@ class LLMManagerGUI:
             with urllib.request.urlopen(url, timeout=2) as resp:
                 if resp.status == 200:
                     self.set_status("● Running (external)", "StatusRun.TLabel")
-                    self.url_label.configure(text=f"URL: http://{host}:{port}")
+                    self.url_label.configure(text=f"URL: http://{display_host}:{port}")
                     return
         except Exception:
             pass
