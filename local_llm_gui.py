@@ -64,7 +64,8 @@ GROUP_ADVANCED = [
     ("UBATCH", "UBatch", "-ub unit batch size"),
     ("CTK", "CTK", "-ctk KV cache type for K, e.g. q8_0"),
     ("CTV", "CTV", "-ctv KV cache type for V, e.g. q8_0"),
-    ("TENSOR_SPLIT", "Tensor Split", "Multi-GPU split ratio"),
+    ("SM", "SM", "-sm split mode, e.g. tensor / layer"),
+    ("TENSOR_SPLIT", "Tensor Split", "--tensor-split, Multi-GPU split ratio (optional)"),
     ("SPEC_TYPE", "Spec Type", "--spec-type, e.g. draft-mtp (optional)"),
     ("SPEC_DRAFT_N_MAX", "Spec Draft N-Max", "--spec-draft-n-max (optional)"),
     ("SPEC_DRAFT_P_MIN", "Spec Draft P-Min", "--spec-draft-p-min (optional)"),
@@ -92,6 +93,7 @@ DEFAULT_VALUES = {
     "UBATCH": "2048",
     "CTK": "q8_0",
     "CTV": "q8_0",
+    "SM": "tensor",
     "TENSOR_SPLIT": "",
     "SPEC_TYPE": "",
     "SPEC_DRAFT_N_MAX": "2",
@@ -807,7 +809,7 @@ class LLMManagerGUI:
             "--parallel", "1",
             "--kv-unified",
             "--flash-attn", "on",
-            "-sm", "tensor",
+            "-sm", v["SM"] or "tensor",
         ]
         # 以下参数仅在填写时加入，保持通用性
         if v["MMPROJ_PATH"]:
