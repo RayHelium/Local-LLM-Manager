@@ -387,21 +387,24 @@ class LLMManagerGUI:
         gpu_box.pack(side=tk.RIGHT, padx=(0, 16))
         self.gpu_labels = []
         for idx in range(2):
+            # 固定宽度：足够容纳最长内容（如 "GPU0 100%  16303/16303MB  100°C"），
+            # 数值变化时标签宽度保持不变
             label = ttk.Label(gpu_box, text=f"GPU{idx} --%  --/--MB  --°C", style="Dim.TLabel",
-                              font=(self.mono_font, 10, "bold"), width=32,
+                              font=(self.mono_font, 10, "bold"), width=34,
                               anchor="e")
             label.pack(fill=tk.X, pady=2)
             self.gpu_labels.append(label)
         # 累计 token 数显示
-        # 宽度 20：可容纳 "Tokens: 100,000,000"（一亿级 token 数）
+        # 固定宽度：足够容纳 "Tokens: 100,000,000"（一亿级 token 数），数值变化时不抖动
         self.tok_label = ttk.Label(header, text="Tokens: 0", style="Dim.TLabel",
                                    font=(self.mono_font, 10, "bold"),
-                                   foreground=COLORS["fg_dim"], width=20, anchor="e")
+                                   foreground=COLORS["fg_dim"], width=22, anchor="e")
         self.tok_label.pack(side=tk.RIGHT, padx=(0, 16))
         # 系统实时状态：CPU 占用 / 内存占用
+        # 固定宽度：足够容纳 "CPU: 100%  MEM: 100%"，数值变化时不抖动
         self.sys_label = ttk.Label(header, text="CPU: --%  MEM: --%",
                                    style="Dim.TLabel", font=(self.mono_font, 10, "bold"),
-                                   foreground=COLORS["fg_dim"], width=24, anchor="e")
+                                   foreground=COLORS["fg_dim"], width=26, anchor="e")
         self.sys_label.pack(side=tk.RIGHT, padx=(0, 16))
 
         # 主体：上方参数（单页滚动），下方日志
