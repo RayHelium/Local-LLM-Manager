@@ -64,7 +64,10 @@ GROUP_ADVANCED = [
     ("UBATCH", "UBatch", "-ub unit batch size"),
     ("CTK", "CTK", "-ctk KV cache type for K, e.g. q8_0"),
     ("CTV", "CTV", "-ctv KV cache type for V, e.g. q8_0"),
+    ("NGL", "NGL", "-ngl layers offloaded to GPU, e.g. 999"),
     ("SM", "SM", "-sm split mode, e.g. tensor / layer"),
+    ("PARALLEL", "Parallel", "--parallel, number of parallel sequences"),
+    ("FLASH_ATTN", "Flash Attn", "--flash-attn, on/off/auto"),
     ("TENSOR_SPLIT", "Tensor Split", "--tensor-split, Multi-GPU split ratio (optional)"),
     ("SPEC_TYPE", "Spec Type", "--spec-type, e.g. draft-mtp (optional)"),
     ("SPEC_DRAFT_N_MAX", "Spec Draft N-Max", "--spec-draft-n-max (optional)"),
@@ -93,7 +96,10 @@ DEFAULT_VALUES = {
     "UBATCH": "2048",
     "CTK": "q8_0",
     "CTV": "q8_0",
+    "NGL": "999",
     "SM": "tensor",
+    "PARALLEL": "1",
+    "FLASH_ATTN": "on",
     "TENSOR_SPLIT": "",
     "SPEC_TYPE": "",
     "SPEC_DRAFT_N_MAX": "2",
@@ -812,7 +818,8 @@ class LLMManagerGUI:
             raise ValueError(f"Port must be a number: {values['PORT']}")
         for key, label in [("CTX_SIZE", "Context Size"), ("THREADS", "Threads"),
                            ("TBATCH", "Thread Batch"), ("BATCH", "Batch"),
-                           ("UBATCH", "UBatch")]:
+                           ("UBATCH", "UBatch"), ("NGL", "NGL"),
+                           ("PARALLEL", "Parallel")]:
             if not values[key].isdigit():
                 raise ValueError(f"{label} must be a number: {values[key]}")
         return values
@@ -829,12 +836,12 @@ class LLMManagerGUI:
             "--temp", v["TEMPERATURE"],
             "--host", v["HOST"],
             "--port", v["PORT"],
-            "-ngl", "999",
+            "-ngl", v["NGL"] or "999",
             "-ctk", v["CTK"] or "q8_0",
             "-ctv", v["CTV"] or "q8_0",
-            "--parallel", "1",
+            "--parallel", v["PARALLEL"] or "1",
             "--kv-unified",
-            "--flash-attn", "on",
+            "--flash-attn", v["FLASH_ATTN"] or "on",
             "-sm", v["SM"] or "tensor",
         ]
         # 以下参数仅在填写时加入，保持通用性
