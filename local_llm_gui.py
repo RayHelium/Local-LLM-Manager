@@ -379,11 +379,7 @@ class LLMManagerGUI:
                               anchor="e")
             label.pack(fill=tk.X, pady=2)
             self.gpu_labels.append(label)
-        # Token 速度 + 累计 token 数显示
-        self.tps_label = ttk.Label(header, text="Speed: -- t/s", style="Dim.TLabel",
-                                   font=(self.ui_font, 10, "bold"),
-                                   foreground=COLORS["accent"], width=22, anchor="e")
-        self.tps_label.pack(side=tk.RIGHT, padx=(0, 16))
+        # 累计 token 数显示
         # 宽度 20：可容纳 "Tokens: 100,000,000"（一亿级 token 数）
         self.tok_label = ttk.Label(header, text="Tokens: 0", style="Dim.TLabel",
                                    font=(self.ui_font, 10, "bold"),
@@ -880,26 +876,9 @@ class LLMManagerGUI:
         except (ValueError, FileNotFoundError) as exc:
             self.append_log(f"Start failed: {exc}")
 
-    def _tps_color(self, value):
-        # 速度越快越绿，越慢越红（0~100 t/s 区间内插值，深底用亮色）
-        t = max(0.0, min(1.0, value / 100.0))
-        # 亮红 (ff453a) -> 亮绿 (34c759)
-        r = int(0xff + (0x34 - 0xff) * t)
-        g = int(0x45 + (0xc7 - 0x45) * t)
-        b = int(0x3a + (0x59 - 0x3a) * t)
-        return f"#{r:02x}{g:02x}{b:02x}"
-
     def _parse_tps(self, line):
-        # 匹配 llama-server 日志里的 token 速度，例如:
-        #   tg_3s =  72.23 t/s   /   3.2s   120 tokens   37.5 t/s
+        # 累加 token 数（print_timing 日志，例如: ... eval time = 97085.65 ms / 7880 tokens ...）
         def _do():
-            m = re.search(r'([\d.]+)\s*t/s', line)
-            if m:
-                value = float(m.group(1))
-                color = self._tps_color(value)
-                self.tps_label.configure(text=f"Speed: {value:.1f} t/s",
-                                         foreground=color)
-            # 累加 token 数（同一行或单独行）
             mt = re.search(r'(\d+)\s*tokens', line)
             if mt:
                 self.total_tokens += int(mt.group(1))
@@ -924,8 +903,6 @@ class LLMManagerGUI:
             if code is not None:
                 self.append_log(f"Process exited with code: {code}")
                 self.set_status("● Stopped", "StatusIdle.TLabel")
-                self.tps_label.configure(text="Speed: -- t/s",
-                                         foreground=COLORS["accent"])
                 self.total_tokens = 0
                 self.tok_label.configure(text="Tokens: 0")
                 self.set_params_editable(True)
