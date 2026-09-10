@@ -392,10 +392,10 @@ class LLMManagerGUI:
                                    font=(self.ui_font, 10, "bold"),
                                    foreground=COLORS["fg_dim"], width=20, anchor="e")
         self.tok_label.pack(side=tk.RIGHT, padx=(0, 16))
-        # 系统实时状态：CPU 占用 / 内存占用 / CPU 温度
-        self.sys_label = ttk.Label(header, text="CPU: --%  MEM: --%  CPU T: --°C",
+        # 系统实时状态：CPU 占用 / 内存占用
+        self.sys_label = ttk.Label(header, text="CPU: --%  MEM: --%",
                                    style="Dim.TLabel", font=(self.ui_font, 10, "bold"),
-                                   foreground=COLORS["fg_dim"], width=34, anchor="e")
+                                   foreground=COLORS["fg_dim"], width=24, anchor="e")
         self.sys_label.pack(side=tk.RIGHT, padx=(0, 16))
 
         # 主体：上方参数（单页滚动），下方日志
@@ -774,34 +774,8 @@ class LLMManagerGUI:
             self.gpu_labels[idx].configure(text=f"GPU{idx} N/A")
 
     # ------------------------------------------------------------
-    # 系统状态轮询：CPU 占用 / 内存占用 / CPU 温度
+    # 系统状态轮询：CPU 占用 / 内存占用
     # ------------------------------------------------------------
-    def _cpu_temperature(self):
-        """读取 CPU 温度（°C），不可用时返回 None。
-        使用 Windows GetSystemPowerInformation（PowrProf.dll）。"""
-        if os.name != "nt":
-            return None
-        try:
-            import ctypes
-
-            class SYSTEM_POWER_INFORMATION(ctypes.Structure):
-                _fields_ = [("dw", ctypes.c_uint32 * 4)]
-
-            dll = ctypes.WinDLL(
-                os.path.join(os.environ["WINDIR"], "System32", "PowrProf.dll")
-            )
-            info = SYSTEM_POWER_INFORMATION()
-            # 返回值：1=成功
-            if dll.GetSystemPowerInformation(
-                ctypes.byref(info), ctypes.sizeof(info),
-                ctypes.byref(info.dw[0]), 0
-            ) != 1:
-                return None
-            temp = (info.dw[2] * 100) // 256
-            return temp if 0 < temp < 200 else None
-        except Exception:
-            return None
-
     def poll_system(self):
         if self.closing:
             return
@@ -811,11 +785,9 @@ class LLMManagerGUI:
             mem = psutil.virtual_memory()
             cpu_txt = f"{cpu:.0f}%"
             mem_txt = f"{mem.percent:.0f}%"
-            temp = self._cpu_temperature()
-            temp_txt = f"{temp}°C" if temp is not None else "--°C"
-            self.sys_label.configure(text=f"CPU: {cpu_txt}  MEM: {mem_txt}  CPU T: {temp_txt}")
+            self.sys_label.configure(text=f"CPU: {cpu_txt}  MEM: {mem_txt}")
         except Exception:
-            self.sys_label.configure(text="CPU: N/A  MEM: N/A  CPU T: N/A")
+            self.sys_label.configure(text="CPU: N/A  MEM: N/A")
         self.root.after(3000, self.poll_system)
 
     # ------------------------------------------------------------
