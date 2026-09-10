@@ -388,19 +388,19 @@ class LLMManagerGUI:
         self.gpu_labels = []
         for idx in range(2):
             label = ttk.Label(gpu_box, text=f"GPU{idx} --%  --/--MB  --°C", style="Dim.TLabel",
-                              font=(self.ui_font, 10, "bold"), width=32,
+                              font=(self.mono_font, 10, "bold"), width=32,
                               anchor="e")
             label.pack(fill=tk.X, pady=2)
             self.gpu_labels.append(label)
         # 累计 token 数显示
         # 宽度 20：可容纳 "Tokens: 100,000,000"（一亿级 token 数）
         self.tok_label = ttk.Label(header, text="Tokens: 0", style="Dim.TLabel",
-                                   font=(self.ui_font, 10, "bold"),
+                                   font=(self.mono_font, 10, "bold"),
                                    foreground=COLORS["fg_dim"], width=20, anchor="e")
         self.tok_label.pack(side=tk.RIGHT, padx=(0, 16))
         # 系统实时状态：CPU 占用 / 内存占用
         self.sys_label = ttk.Label(header, text="CPU: --%  MEM: --%",
-                                   style="Dim.TLabel", font=(self.ui_font, 10, "bold"),
+                                   style="Dim.TLabel", font=(self.mono_font, 10, "bold"),
                                    foreground=COLORS["fg_dim"], width=24, anchor="e")
         self.sys_label.pack(side=tk.RIGHT, padx=(0, 16))
 
