@@ -69,7 +69,6 @@ GROUP_ADVANCED = [
     ("PARALLEL", "Parallel", "--parallel, number of parallel sequences"),
     ("FLASH_ATTN", "Flash Attn", "--flash-attn, on/off/auto"),
     ("KV_UNIFIED", "KV Unified", "--kv-unified, on/off (optional)"),
-    ("CACHE_SLIDING", "Cache Sliding", "--cache-sliding, sliding window size"),
     ("TENSOR_SPLIT", "Tensor Split", "--tensor-split, Multi-GPU split ratio (optional)"),
     ("SPEC_TYPE", "Spec Type", "--spec-type, e.g. draft-mtp (optional)"),
     ("SPEC_DRAFT_N_MAX", "Spec Draft N-Max", "--spec-draft-n-max (optional)"),
@@ -103,7 +102,6 @@ DEFAULT_VALUES = {
     "PARALLEL": "1",
     "FLASH_ATTN": "on",
     "KV_UNIFIED": "on",
-    "CACHE_SLIDING": "128000",
     "TENSOR_SPLIT": "",
     "SPEC_TYPE": "",
     "SPEC_DRAFT_N_MAX": "2",
@@ -826,8 +824,7 @@ class LLMManagerGUI:
         for key, label in [("CTX_SIZE", "Context Size"), ("THREADS", "Threads"),
                            ("TBATCH", "Thread Batch"), ("BATCH", "Batch"),
                            ("UBATCH", "UBatch"), ("NGL", "NGL"),
-                           ("PARALLEL", "Parallel"),
-                           ("CACHE_SLIDING", "Cache Sliding")]:
+                           ("PARALLEL", "Parallel")]:
             if not values[key].isdigit():
                 raise ValueError(f"{label} must be a number: {values[key]}")
         return values
@@ -849,7 +846,6 @@ class LLMManagerGUI:
             "-ctv", v["CTV"] or "q8_0",
             "--parallel", v["PARALLEL"] or "1",
             "--flash-attn", v["FLASH_ATTN"] or "on",
-            "--cache-sliding", v["CACHE_SLIDING"] or "128000",
             "-sm", v["SM"] or "tensor",
         ]
         # 以下参数仅在填写时加入，保持通用性
