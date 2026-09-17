@@ -52,6 +52,7 @@ GROUP_MODEL = [
     ("REASONING", "Reasoning", "--reasoning, on/off (optional)"),
     ("REASONING_EFFORT", "Reasoning Effort", "--reasoning-effort, e.g. low (optional)"),
     ("REASONING_PRESERVE", "Reasoning Preserve", "--reasoning-preserve, on/off (optional)"),
+    ("REASONING_BUDGET", "Reasoning Budget", "--reasoning-budget, max reasoning tokens (optional)"),
     ("TEMPERATURE", "Temperature", "Sampling temperature"),
     ("IMAGE_MIN_TOKENS", "Image Min Tokens", "--image-min-tokens (optional)"),
     ("MAX_TOKENS", "Max Tokens", "--max-tokens, max output tokens (optional)"),
@@ -62,8 +63,8 @@ GROUP_ADVANCED = [
     ("TBATCH", "Thread Batch", "-tb thread batch size"),
     ("BATCH", "Batch", "-b batch size"),
     ("UBATCH", "UBatch", "-ub unit batch size"),
-    ("CTK", "CTK", "-ctk KV cache type for K, e.g. q8_0"),
-    ("CTV", "CTV", "-ctv KV cache type for V, e.g. q8_0"),
+    ("CTK", "CTK", "-ctk KV cache type for K, e.g. q8_0 (optional)"),
+    ("CTV", "CTV", "-ctv KV cache type for V, e.g. q8_0 (optional)"),
     ("NGL", "NGL", "-ngl layers offloaded to GPU, e.g. 999"),
     ("SM", "SM", "-sm split mode, e.g. tensor / layer"),
     ("PARALLEL", "Parallel", "--parallel, number of parallel sequences"),
@@ -95,8 +96,8 @@ DEFAULT_VALUES = {
     "TBATCH": "2048",
     "BATCH": "2048",
     "UBATCH": "2048",
-    "CTK": "q8_0",
-    "CTV": "q8_0",
+    "CTK": "",
+    "CTV": "",
     "NGL": "999",
     "SM": "tensor",
     "PARALLEL": "1",
@@ -106,13 +107,14 @@ DEFAULT_VALUES = {
     "SPEC_TYPE": "",
     "SPEC_DRAFT_N_MAX": "2",
     "SPEC_DRAFT_P_MIN": "0.6",
-    "SPEC_DRAFT_TYPE_K": "f16",
-    "SPEC_DRAFT_TYPE_V": "f16",
+    "SPEC_DRAFT_TYPE_K": "",
+    "SPEC_DRAFT_TYPE_V": "",
     "START_TIMEOUT_S": "180",
     "API_KEY": "",
     "REASONING": "off",
     "REASONING_EFFORT": "low",
     "REASONING_PRESERVE": "",
+    "REASONING_BUDGET": "20480",
     "TEMPERATURE": "0.8",
     "IMAGE_MIN_TOKENS": "1024",
     "MAX_TOKENS": "",
@@ -842,8 +844,6 @@ class LLMManagerGUI:
             "--host", v["HOST"],
             "--port", v["PORT"],
             "-ngl", v["NGL"] or "999",
-            "-ctk", v["CTK"] or "q8_0",
-            "-ctv", v["CTV"] or "q8_0",
             "--parallel", v["PARALLEL"] or "1",
             "--flash-attn", v["FLASH_ATTN"] or "on",
             "-sm", v["SM"] or "tensor",
@@ -851,6 +851,10 @@ class LLMManagerGUI:
         # 以下参数仅在填写时加入，保持通用性
         if v.get("KV_UNIFIED", "").lower() == "on":
             cmd += ["--kv-unified"]
+        if v["CTK"]:
+            cmd += ["-ctk", v["CTK"]]
+        if v["CTV"]:
+            cmd += ["-ctv", v["CTV"]]
         if v["MMPROJ_PATH"]:
             cmd += ["--mmproj", v["MMPROJ_PATH"]]
         if v["CHAT_TEMPLATE"]:
@@ -877,6 +881,8 @@ class LLMManagerGUI:
             cmd += ["--reasoning-preserve"]
         elif v["REASONING_PRESERVE"].lower() == "off":
             cmd += ["--no-reasoning-preserve"]
+        if v["REASONING_BUDGET"]:
+            cmd += ["--reasoning-budget", v["REASONING_BUDGET"]]
         if v["IMAGE_MIN_TOKENS"]:
             cmd += ["--image-min-tokens", v["IMAGE_MIN_TOKENS"]]
         if v["MAX_TOKENS"]:
