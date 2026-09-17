@@ -55,7 +55,6 @@ GROUP_MODEL = [
     ("REASONING_BUDGET", "Reasoning Budget", "--reasoning-budget, max reasoning tokens (optional)"),
     ("TEMPERATURE", "Temperature", "Sampling temperature"),
     ("IMAGE_MIN_TOKENS", "Image Min Tokens", "--image-min-tokens (optional)"),
-    ("MAX_TOKENS", "Max Tokens", "--max-tokens, max output tokens (optional)"),
 ]
 GROUP_ADVANCED = [
     ("LLAMA_DIR", "llama Dir", "Directory of llama-server.exe (required)"),
@@ -127,7 +126,6 @@ DEFAULT_VALUES = {
     "REASONING_BUDGET": "20480",
     "TEMPERATURE": "0.8",
     "IMAGE_MIN_TOKENS": "1024",
-    "MAX_TOKENS": "",
 }
 
 
@@ -914,8 +912,6 @@ class LLMManagerGUI:
             cmd += ["--reasoning-budget", v["REASONING_BUDGET"]]
         if v["IMAGE_MIN_TOKENS"]:
             cmd += ["--image-min-tokens", v["IMAGE_MIN_TOKENS"]]
-        if v["MAX_TOKENS"]:
-            cmd += ["--max-tokens", v["MAX_TOKENS"]]
         if v["API_KEY"]:
             cmd += ["--api-key", v["API_KEY"]]
         return cmd
@@ -967,16 +963,34 @@ class LLMManagerGUI:
         else:
             self.root.after(0, _do)
 
+    def _is_error_line(self, line):
+        """判断服务器日志行是否为 error 级别（如 "error: ..."）。"""
+        return bool(re.search(r"\berror\b", line, re.IGNORECASE))
+
     def _read_output(self):
         proc = self.process
         if proc is None or proc.stdout is None:
             return
+        error_found = False
         for line in iter(proc.stdout.readline, ""):
             if not line:
                 break
             self.append_log(line.rstrip())
             self._parse_tps(line)
+            if self._is_error_line(line):
+                # 出现 error 级别日志：立即停止服务器
+                error_found = True
+                self.append_log("Error detected in server log. Stopping server.")
+                break
         if self.process is proc:
+            if error_found and proc.poll() is None:
+                try:
+                    proc.terminate()
+                    proc.wait(timeout=10)
+                    self.append_log("Server process stopped due to error.")
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    self.append_log("Server process killed due to error.")
             code = proc.poll()
             if code is not None:
                 self.append_log(f"Process exited with code: {code}")
