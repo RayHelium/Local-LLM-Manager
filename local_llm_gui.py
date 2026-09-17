@@ -76,6 +76,11 @@ GROUP_ADVANCED = [
     ("SPEC_DRAFT_P_MIN", "Spec Draft P-Min", "--spec-draft-p-min (optional)"),
     ("SPEC_DRAFT_TYPE_K", "Spec Draft Type K", "--spec-draft-type-k, e.g. f16"),
     ("SPEC_DRAFT_TYPE_V", "Spec Draft Type V", "--spec-draft-type-v, e.g. f16"),
+    ("CACHE_PROMPT", "Cache Prompt", "--cache-prompt, on/off (optional)"),
+    ("CACHE_REUSE", "Cache Reuse", "--cache-reuse, reuse cached tokens, e.g. 1"),
+    ("CACHE_RAM", "Cache RAM", "--cache-ram, prompt cache size in MB, e.g. 8192"),
+    ("CACHE_IDLE_SLOTS", "Cache Idle Slots", "--cache-idle-slots, on/off (optional)"),
+    ("SLEEP_IDLE_SECONDS", "Sleep Idle Seconds", "--sleep-idle-seconds, idle sleep timeout (optional)"),
     ("START_TIMEOUT_S", "Start Timeout (s)", "Timeout waiting for ready"),
     ("API_KEY", "API Key", "API access key"),
 ]
@@ -109,6 +114,11 @@ DEFAULT_VALUES = {
     "SPEC_DRAFT_P_MIN": "0.6",
     "SPEC_DRAFT_TYPE_K": "",
     "SPEC_DRAFT_TYPE_V": "",
+    "CACHE_PROMPT": "on",
+    "CACHE_REUSE": "1",
+    "CACHE_RAM": "8192",
+    "CACHE_IDLE_SLOTS": "on",
+    "SLEEP_IDLE_SECONDS": "900",
     "START_TIMEOUT_S": "180",
     "API_KEY": "",
     "REASONING": "off",
@@ -391,10 +401,10 @@ class LLMManagerGUI:
         gpu_box.pack(side=tk.RIGHT, padx=(0, 16))
         self.gpu_labels = []
         for idx in range(2):
-            # 固定宽度：足够容纳最长内容（如 "GPU0 100%  16303/16303MB  100°C"），
+            # 固定宽度：足够容纳最长内容（如 "GPU0 100%  16303/16303MB  100°C  450W"），
             # 数值变化时标签宽度保持不变
-            label = ttk.Label(gpu_box, text=f"GPU{idx} --%  --/--MB  --°C", style="Dim.TLabel",
-                              font=(self.mono_font, 10, "bold"), width=34,
+            label = ttk.Label(gpu_box, text=f"GPU{idx} --%  --/--MB  --°C  --W", style="Dim.TLabel",
+                              font=(self.mono_font, 10, "bold"), width=44,
                               anchor="e")
             label.pack(fill=tk.X, pady=2)
             self.gpu_labels.append(label)
@@ -756,7 +766,7 @@ class LLMManagerGUI:
         try:
             result = subprocess.run(
                 ["nvidia-smi",
-                 "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu",
+                 "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw",
                  "--format=csv,noheader,nounits"],
                 capture_output=True, text=True, timeout=5,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
@@ -766,12 +776,21 @@ class LLMManagerGUI:
                 for idx in range(2):
                     if idx < len(lines):
                         parts = [p.strip() for p in lines[idx].split(",")]
-                        if len(parts) >= 5:
+                        if len(parts) >= 6:
                             util = int(parts[1])
                             used, total = parts[2], parts[3]
                             temp = int(parts[4])
+                            # 功率：power.draw（W），个别显卡/虚拟化环境可能为 [N/A]
+                            pw = parts[5]
+                            if "N/A" in pw:
+                                power = "N/A"
+                            else:
+                                try:
+                                    power = f"{float(pw):.0f}W"
+                                except ValueError:
+                                    power = f"{pw}W"
                             self.gpu_labels[idx].configure(
-                                text=f"GPU{idx} {util}%  {used}/{total}MB  {temp}°C"
+                                text=f"GPU{idx} {util}%  {used}/{total}MB  {temp}°C  {power}"
                             )
                     else:
                         # GPU not present
@@ -873,6 +892,16 @@ class LLMManagerGUI:
             cmd += ["--spec-draft-type-k", v["SPEC_DRAFT_TYPE_K"]]
         if v["SPEC_DRAFT_TYPE_V"]:
             cmd += ["--spec-draft-type-v", v["SPEC_DRAFT_TYPE_V"]]
+        if v["CACHE_PROMPT"].lower() == "on":
+            cmd += ["--cache-prompt"]
+        if v["CACHE_REUSE"]:
+            cmd += ["--cache-reuse", v["CACHE_REUSE"]]
+        if v["CACHE_RAM"]:
+            cmd += ["--cache-ram", v["CACHE_RAM"]]
+        if v["CACHE_IDLE_SLOTS"].lower() == "on":
+            cmd += ["--cache-idle-slots"]
+        if v["SLEEP_IDLE_SECONDS"]:
+            cmd += ["--sleep-idle-seconds", v["SLEEP_IDLE_SECONDS"]]
         if v["REASONING"]:
             cmd += ["--reasoning", v["REASONING"]]
         if v["REASONING_EFFORT"]:
