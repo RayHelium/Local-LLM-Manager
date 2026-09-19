@@ -54,7 +54,12 @@ GROUP_MODEL = [
     ("REASONING_PRESERVE", "Reasoning Preserve", "--reasoning-preserve, on/off (optional)"),
     ("REASONING_BUDGET", "Reasoning Budget", "--reasoning-budget, max reasoning tokens (optional)"),
     ("TEMPERATURE", "Temperature", "Sampling temperature"),
+    ("TOP_K", "Top K", "--top-k, top-k sampling (default 40, 0=disabled)"),
+    ("TOP_P", "Top P", "--top-p, nucleus sampling (default 0.95, 1.0=disabled)"),
+    ("MIN_P", "Min P", "--min-p, min-p sampling (default 0.05, 0.0=disabled)"),
+    ("SEED", "Seed", "--seed, RNG seed (-1=random)"),
     ("IMAGE_MIN_TOKENS", "Image Min Tokens", "--image-min-tokens (optional)"),
+    ("IMAGE_MAX_TOKENS", "Image Max Tokens", "--image-max-tokens (optional)"),
 ]
 GROUP_ADVANCED = [
     ("LLAMA_DIR", "llama Dir", "Directory of llama-server.exe (required)"),
@@ -70,9 +75,13 @@ GROUP_ADVANCED = [
     ("FLASH_ATTN", "Flash Attn", "--flash-attn, on/off/auto"),
     ("KV_UNIFIED", "KV Unified", "--kv-unified, on/off (optional)"),
     ("TENSOR_SPLIT", "Tensor Split", "--tensor-split, Multi-GPU split ratio (optional)"),
+    ("MAIN_GPU", "Main GPU", "--main-gpu, index of main GPU (optional)"),
+    ("FIT_TARGET", "Fit Target", "--fit-target, VRAM margin per GPU in MiB (optional)"),
+    ("SWA_FULL", "SWA Full", "--swa-full, on/off, full-size SWA cache (optional)"),
     ("SPEC_TYPE", "Spec Type", "--spec-type, e.g. draft-mtp (optional)"),
     ("SPEC_DRAFT_N_MAX", "Spec Draft N-Max", "--spec-draft-n-max (optional)"),
     ("SPEC_DRAFT_P_MIN", "Spec Draft P-Min", "--spec-draft-p-min (optional)"),
+    ("SPEC_DRAFT_P_SPLIT", "Spec Draft P-Split", "--spec-draft-p-split, e.g. 0.10 (optional)"),
     ("SPEC_DRAFT_TYPE_K", "Spec Draft Type K", "--spec-draft-type-k, e.g. f16"),
     ("SPEC_DRAFT_TYPE_V", "Spec Draft Type V", "--spec-draft-type-v, e.g. f16"),
     ("CACHE_PROMPT", "Cache Prompt", "--cache-prompt, on/off (optional)"),
@@ -81,6 +90,7 @@ GROUP_ADVANCED = [
     ("CACHE_IDLE_SLOTS", "Cache Idle Slots", "--cache-idle-slots, on/off (optional)"),
     ("SLEEP_IDLE_SECONDS", "Sleep Idle Seconds", "--sleep-idle-seconds, idle sleep timeout (optional)"),
     ("START_TIMEOUT_S", "Start Timeout (s)", "Timeout waiting for ready"),
+    ("TIMEOUT_S", "Server Timeout (s)", "--timeout, server read/write timeout (optional)"),
     ("API_KEY", "API Key", "API access key"),
 ]
 
@@ -108,9 +118,13 @@ DEFAULT_VALUES = {
     "FLASH_ATTN": "on",
     "KV_UNIFIED": "on",
     "TENSOR_SPLIT": "",
+    "MAIN_GPU": "",
+    "FIT_TARGET": "",
+    "SWA_FULL": "",
     "SPEC_TYPE": "",
     "SPEC_DRAFT_N_MAX": "2",
     "SPEC_DRAFT_P_MIN": "0.6",
+    "SPEC_DRAFT_P_SPLIT": "",
     "SPEC_DRAFT_TYPE_K": "",
     "SPEC_DRAFT_TYPE_V": "",
     "CACHE_PROMPT": "on",
@@ -119,6 +133,7 @@ DEFAULT_VALUES = {
     "CACHE_IDLE_SLOTS": "on",
     "SLEEP_IDLE_SECONDS": "900",
     "START_TIMEOUT_S": "180",
+    "TIMEOUT_S": "",
     "API_KEY": "",
     "REASONING": "off",
     "REASONING_EFFORT": "low",
@@ -126,6 +141,11 @@ DEFAULT_VALUES = {
     "REASONING_BUDGET": "20480",
     "TEMPERATURE": "0.8",
     "IMAGE_MIN_TOKENS": "1024",
+    "TOP_K": "",
+    "TOP_P": "",
+    "MIN_P": "",
+    "SEED": "",
+    "IMAGE_MAX_TOKENS": "",
 }
 
 
@@ -880,12 +900,20 @@ class LLMManagerGUI:
             cmd += ["--alias", v["ALIAS"]]
         if v["TENSOR_SPLIT"]:
             cmd += ["--tensor-split", v["TENSOR_SPLIT"]]
+        if v["MAIN_GPU"]:
+            cmd += ["--main-gpu", v["MAIN_GPU"]]
+        if v["FIT_TARGET"]:
+            cmd += ["--fit-target", v["FIT_TARGET"]]
+        if v["SWA_FULL"].lower() == "on":
+            cmd += ["--swa-full"]
         if v["SPEC_TYPE"]:
             cmd += ["--spec-type", v["SPEC_TYPE"]]
         if v["SPEC_DRAFT_N_MAX"]:
             cmd += ["--spec-draft-n-max", v["SPEC_DRAFT_N_MAX"]]
         if v["SPEC_DRAFT_P_MIN"]:
             cmd += ["--spec-draft-p-min", v["SPEC_DRAFT_P_MIN"]]
+        if v["SPEC_DRAFT_P_SPLIT"]:
+            cmd += ["--spec-draft-p-split", v["SPEC_DRAFT_P_SPLIT"]]
         if v["SPEC_DRAFT_TYPE_K"]:
             cmd += ["--spec-draft-type-k", v["SPEC_DRAFT_TYPE_K"]]
         if v["SPEC_DRAFT_TYPE_V"]:
@@ -912,6 +940,18 @@ class LLMManagerGUI:
             cmd += ["--reasoning-budget", v["REASONING_BUDGET"]]
         if v["IMAGE_MIN_TOKENS"]:
             cmd += ["--image-min-tokens", v["IMAGE_MIN_TOKENS"]]
+        if v["IMAGE_MAX_TOKENS"]:
+            cmd += ["--image-max-tokens", v["IMAGE_MAX_TOKENS"]]
+        if v["TOP_K"]:
+            cmd += ["--top-k", v["TOP_K"]]
+        if v["TOP_P"]:
+            cmd += ["--top-p", v["TOP_P"]]
+        if v["MIN_P"]:
+            cmd += ["--min-p", v["MIN_P"]]
+        if v["SEED"]:
+            cmd += ["--seed", v["SEED"]]
+        if v["TIMEOUT_S"]:
+            cmd += ["--timeout", v["TIMEOUT_S"]]
         if v["API_KEY"]:
             cmd += ["--api-key", v["API_KEY"]]
         return cmd
