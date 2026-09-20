@@ -225,26 +225,26 @@ class LLMManagerGUI:
         style.configure("TLabel", background=c["bg"], foreground=c["fg"])
         style.configure("Card.TLabel", background=c["panel"], foreground=c["fg"])
         style.configure("Title.TLabel", background=c["bg"], foreground=c["accent"],
-                        font=(self.ui_font, 18, "bold"))
+                        font=(self.ui_font, 20, "bold"))
         style.configure("Dim.TLabel", background=c["bg"], foreground=c["fg_dim"])
         style.configure("StatusIdle.TLabel", background=c["bg"], foreground=c["fg_dim"],
-                        font=(self.ui_font, 11, "bold"))
+                        font=(self.ui_font, 12, "bold"))
         style.configure("StatusRun.TLabel", background=c["bg"], foreground=c["green"],
-                        font=(self.ui_font, 11, "bold"))
+                        font=(self.ui_font, 12, "bold"))
         style.configure("StatusStart.TLabel", background=c["bg"], foreground=c["yellow"],
-                        font=(self.ui_font, 11, "bold"))
+                        font=(self.ui_font, 12, "bold"))
         style.configure("TEntry", background=c["entry_bg"], foreground=c["fg"],
                         fieldbackground=c["entry_bg"], insertcolor=c["fg"], padding=5)
         style.map("TEntry", fieldbackground=[("focus", c["entry_bg"])])
 
         style.configure("Start.TButton", background=c["green"], foreground="#ffffff",
-                        font=(self.ui_font, 11, "bold"), padding=8)
+                        font=(self.ui_font, 12, "bold"), padding=8)
         style.map("Start.TButton", background=[("active", "#5fd87d")])
         style.configure("Stop.TButton", background=c["red"], foreground="#ffffff",
-                        font=(self.ui_font, 11, "bold"), padding=8)
+                        font=(self.ui_font, 12, "bold"), padding=8)
         style.map("Stop.TButton", background=[("active", "#ff6b60")])
         style.configure("TButton", background=c["panel_light"], foreground=c["fg"],
-                        font=(self.ui_font, 10, "bold"), padding=8)
+                        font=(self.ui_font, 11, "bold"), padding=8)
         style.map("TButton", background=[("active", c["accent"])],
                   foreground=[("active", "#ffffff")])
 
@@ -404,11 +404,11 @@ class LLMManagerGUI:
         left_col.pack(side=tk.LEFT, fill=tk.X)
         ttk.Label(left_col, text="Local LLM Manager", style="Title.TLabel").pack(anchor="w")
         self.url_label = ttk.Label(left_col, text="", style="Dim.TLabel",
-                                   font=(self.ui_font, 10, "bold"),
+                                   font=(self.ui_font, 12, "bold"),
                                    foreground=COLORS["fg_dim"], width=28, anchor="w")
         self.url_label.pack(anchor="w", pady=(4, 0))
         self.lock_label = ttk.Label(header, text="", style="Dim.TLabel",
-                                    font=(self.ui_font, 10, "bold"),
+                                    font=(self.ui_font, 12, "bold"),
                                     foreground=COLORS["yellow"])
         self.lock_label.pack(side=tk.RIGHT, padx=(0, 16))
         self.status_label = ttk.Label(header, textvariable=self.status_var, style="StatusIdle.TLabel")
@@ -422,20 +422,20 @@ class LLMManagerGUI:
             # 固定宽度：足够容纳最长内容（如 "GPU0 100%  16303/16303MB  100°C  450W"），
             # 数值变化时标签宽度保持不变
             label = ttk.Label(gpu_box, text=f"GPU{idx} --%  --/--MB  --°C  --W", style="Dim.TLabel",
-                              font=(self.mono_font, 10, "bold"), width=44,
+                              font=(self.mono_font, 12, "bold"), width=44,
                               anchor="e")
             label.pack(fill=tk.X, pady=2)
             self.gpu_labels.append(label)
         # 累计 token 数显示
         # 固定宽度：足够容纳 "Tokens: 100,000,000"（一亿级 token 数），数值变化时不抖动
         self.tok_label = ttk.Label(header, text="Tokens: 0", style="Dim.TLabel",
-                                   font=(self.mono_font, 10, "bold"),
+                                   font=(self.mono_font, 12, "bold"),
                                    foreground=COLORS["fg_dim"], width=22, anchor="e")
         self.tok_label.pack(side=tk.RIGHT, padx=(0, 16))
         # 系统实时状态：CPU 占用 / 内存占用
         # 固定宽度：足够容纳 "CPU: 100%  MEM: 100%"，数值变化时不抖动
         self.sys_label = ttk.Label(header, text="CPU: --%  MEM: --%",
-                                   style="Dim.TLabel", font=(self.mono_font, 10, "bold"),
+                                   style="Dim.TLabel", font=(self.mono_font, 12, "bold"),
                                    foreground=COLORS["fg_dim"], width=26, anchor="e")
         self.sys_label.pack(side=tk.RIGHT, padx=(0, 16))
 
@@ -500,7 +500,7 @@ class LLMManagerGUI:
         log_title_row = ttk.Frame(log_card)
         log_title_row.pack(fill=tk.X, pady=(0, 6))
         ttk.Label(log_title_row, text="Log Output", style="Card.TLabel",
-                  font=(self.ui_font, 11, "bold")).pack(side=tk.LEFT)
+                  font=(self.ui_font, 13, "bold")).pack(side=tk.LEFT)
         ttk.Button(log_title_row, text="Clear", style="TButton",
                    command=self.clear_log).pack(side=tk.RIGHT, padx=(6, 0))
         ttk.Button(log_title_row, text="Save Log", style="TButton",
@@ -524,34 +524,14 @@ class LLMManagerGUI:
         self.root.bind("<Destroy>", self.on_close)
 
     def _on_canvas_resize(self, event):
-        """内部 frame 填满 canvas 宽度；标题列宽度随窗口宽度自适应缩放。"""
-        import tkinter.font as tkfont
+        """内部 frame 填满 canvas 宽度。"""
         width_px = event.width
         if width_px < 80:
             return
-        # 内部 frame 宽度 = canvas 宽度（占满整个界面宽度）
         try:
             self._canvas.itemconfigure(self._canvas_window, width=width_px)
         except tk.TclError:
             pass
-        # 标题列约占参数区宽度的 45%
-        target_px = int(width_px * 0.45)
-        try:
-            font = tkfont.Font(family=self.ui_font, size=10, weight="bold")
-            sample = "TheQuickBrownFox"
-            avg = font.measure(sample) / len(sample)
-            if avg <= 0:
-                return
-            chars = int(target_px / avg)
-        except Exception:
-            chars = 38
-        chars = max(16, min(chars, 64))
-        labels = getattr(self, "title_labels", []) + getattr(self, "hint_labels", [])
-        for label in labels:
-            try:
-                label.configure(width=chars)
-            except tk.TclError:
-                pass
 
     def _bind_mouse_wheel(self, widget):
         """递归绑定鼠标滚轮事件：canvas 及其所有子控件（输入框/按钮/标签）。
@@ -604,16 +584,12 @@ class LLMManagerGUI:
 
         walk(self.scroll_frame)
 
-    def _title_width(self):
-        """计算所有参数标题的最大长度，用于统一列宽。"""
-        all_fields = GROUP_BASE + GROUP_MODEL + GROUP_ADVANCED
-        longest = 0
-        for key, label, _hint in all_fields:
-            longest = max(longest, len(f"{label}  ({key})"))
-        return longest + 2  # 留一点余量
-
     def build_group(self, parent, title, fields):
-        col_width = self._title_width()
+        # 列宽 = 本组最长“标题”或“提示” + 2，保证输入框左对齐，且长提示不被截断
+        col_width = max(
+            max(len(f"{label}  ({key})"), len(hint))
+            for key, label, hint in fields
+        ) + 2
         # 分组卡片：上下排列、占满宽度，点击标题可折叠/展开
         card = ttk.Frame(parent, style="Card.TFrame", padding=(8, 4))
         card.pack(fill=tk.X, pady=(10, 2))
@@ -641,20 +617,22 @@ class LLMManagerGUI:
             row = ttk.Frame(content, style="Card.TFrame", padding=8)
             row.pack(fill=tk.X, pady=4)
             # 标题列统一宽度，保证各行输入框左对齐（宽度随窗口自适应）
-            left_col = ttk.Frame(row)
+            # 用 Card.TFrame 样式，背景与行/标签一致，避免默认 TFrame 深色底产生黑框
+            left_col = ttk.Frame(row, style="Card.TFrame")
             left_col.pack(side=tk.LEFT)
             title_label = ttk.Label(left_col, text=f"{label}  ({key})", style="Card.TLabel",
-                                    font=(self.ui_font, 10, "bold"), anchor="w",
+                                    font=(self.ui_font, 12, "bold"), anchor="w",
                                     width=col_width)
             title_label.pack(anchor="w")
             self.title_labels.append(title_label)
             hint_label = ttk.Label(left_col, text=hint, style="Card.TLabel",
+                                   font=(self.ui_font, 11),
                                    foreground=COLORS["fg_dim"], anchor="w",
                                    width=col_width)
             hint_label.pack(anchor="w")
             self.hint_labels.append(hint_label)
 
-            entry = ttk.Entry(row, font=(self.mono_font, 10))
+            entry = ttk.Entry(row, font=(self.mono_font, 12))
             entry.insert(0, str(self.config.get(key, "")))
             entry.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(12, 0))
             self.entries[key] = entry
