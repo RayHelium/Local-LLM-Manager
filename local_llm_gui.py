@@ -40,7 +40,6 @@ COLORS = {
 # ============================================================
 GROUP_BASE = [
     ("HOST", "Host", "Server listen address"),
-    ("CHECK_HOST", "Check Host", "IP for health check (optional, default 127.0.0.1)"),
     ("PORT", "Port", "Service port"),
     ("ALIAS", "Alias", "OpenAI-compatible alias"),
 ]
@@ -58,6 +57,8 @@ GROUP_MODEL = [
     ("TOP_P", "Top P", "--top-p, nucleus sampling (default 0.95, 1.0=disabled)"),
     ("MIN_P", "Min P", "--min-p, min-p sampling (default 0.05, 0.0=disabled)"),
     ("SEED", "Seed", "--seed, RNG seed (-1=random)"),
+    ("REPEAT_PENALTY", "Repeat Penalty", "--repeat-penalty (default 1.1, 1.0=disabled)"),
+    ("N_PREDICT", "N Predict", "--n-predict, max tokens to generate (default 16384)"),
     ("IMAGE_MIN_TOKENS", "Image Min Tokens", "--image-min-tokens (optional)"),
     ("IMAGE_MAX_TOKENS", "Image Max Tokens", "--image-max-tokens (optional)"),
 ]
@@ -75,9 +76,6 @@ GROUP_ADVANCED = [
     ("FLASH_ATTN", "Flash Attn", "--flash-attn, on/off/auto"),
     ("KV_UNIFIED", "KV Unified", "--kv-unified, on/off (optional)"),
     ("TENSOR_SPLIT", "Tensor Split", "--tensor-split, Multi-GPU split ratio (optional)"),
-    ("MAIN_GPU", "Main GPU", "--main-gpu, index of main GPU (optional)"),
-    ("FIT_TARGET", "Fit Target", "--fit-target, VRAM margin per GPU in MiB (optional)"),
-    ("SWA_FULL", "SWA Full", "--swa-full, on/off, full-size SWA cache (optional)"),
     ("SPEC_TYPE", "Spec Type", "--spec-type, e.g. draft-mtp (optional)"),
     ("SPEC_DRAFT_N_MAX", "Spec Draft N-Max", "--spec-draft-n-max (optional)"),
     ("SPEC_DRAFT_P_MIN", "Spec Draft P-Min", "--spec-draft-p-min (optional)"),
@@ -102,7 +100,6 @@ DEFAULT_VALUES = {
     "MMPROJ_PATH": "",
     "CHAT_TEMPLATE": "",
     "HOST": "0.0.0.0",
-    "CHECK_HOST": "",
     "PORT": "8080",
     "CTX_SIZE": "8192",
     "ALIAS": "",
@@ -118,9 +115,6 @@ DEFAULT_VALUES = {
     "FLASH_ATTN": "on",
     "KV_UNIFIED": "on",
     "TENSOR_SPLIT": "",
-    "MAIN_GPU": "",
-    "FIT_TARGET": "",
-    "SWA_FULL": "",
     "SPEC_TYPE": "",
     "SPEC_DRAFT_N_MAX": "2",
     "SPEC_DRAFT_P_MIN": "0.6",
@@ -145,6 +139,8 @@ DEFAULT_VALUES = {
     "TOP_P": "",
     "MIN_P": "",
     "SEED": "",
+    "REPEAT_PENALTY": "",
+    "N_PREDICT": "16384",
     "IMAGE_MAX_TOKENS": "",
 }
 
@@ -878,12 +874,6 @@ class LLMManagerGUI:
             cmd += ["--alias", v["ALIAS"]]
         if v["TENSOR_SPLIT"]:
             cmd += ["--tensor-split", v["TENSOR_SPLIT"]]
-        if v["MAIN_GPU"]:
-            cmd += ["--main-gpu", v["MAIN_GPU"]]
-        if v["FIT_TARGET"]:
-            cmd += ["--fit-target", v["FIT_TARGET"]]
-        if v["SWA_FULL"].lower() == "on":
-            cmd += ["--swa-full"]
         if v["SPEC_TYPE"]:
             cmd += ["--spec-type", v["SPEC_TYPE"]]
         if v["SPEC_DRAFT_N_MAX"]:
@@ -928,6 +918,10 @@ class LLMManagerGUI:
             cmd += ["--min-p", v["MIN_P"]]
         if v["SEED"]:
             cmd += ["--seed", v["SEED"]]
+        if v["REPEAT_PENALTY"]:
+            cmd += ["--repeat-penalty", v["REPEAT_PENALTY"]]
+        if v["N_PREDICT"]:
+            cmd += ["--n-predict", v["N_PREDICT"]]
         if v["TIMEOUT_S"]:
             cmd += ["--timeout", v["TIMEOUT_S"]]
         if v["API_KEY"]:
@@ -1027,7 +1021,9 @@ class LLMManagerGUI:
         proc = self.process
         if proc is None or proc.poll() is not None:
             return
-        host = self.entries["CHECK_HOST"].get().strip() or "127.0.0.1"
+        host = self.entries["HOST"].get().strip()
+        if not host or host == "0.0.0.0":
+            host = "127.0.0.1"
         port = self.entries["PORT"].get().strip()
         url = f"http://{host}:{port}/health"
         try:
@@ -1042,8 +1038,8 @@ class LLMManagerGUI:
         self.root.after(1500, self.poll_health)
 
     def refresh_status(self):
-        host = self.entries["CHECK_HOST"].get().strip() or "127.0.0.1"
-        display_host = self.entries["HOST"].get().strip() or host
+        raw_host = self.entries["HOST"].get().strip()
+        host = raw_host if raw_host and raw_host != "0.0.0.0" else "127.0.0.1"
         port = self.entries["PORT"].get().strip() or "8080"
         url = f"http://{host}:{port}/health"
         if self.process is not None and self.process.poll() is None:
@@ -1052,7 +1048,7 @@ class LLMManagerGUI:
             with urllib.request.urlopen(url, timeout=2) as resp:
                 if resp.status == 200:
                     self.set_status("● Running (external)", "StatusRun.TLabel")
-                    self.url_label.configure(text=f"URL: http://{display_host}:{port}")
+                    self.url_label.configure(text=f"URL: http://{host}:{port}")
                     return
         except Exception:
             pass
