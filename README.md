@@ -53,7 +53,7 @@ The output lands in `dist\LocalLLMManager.exe`.
 
 Values are stored in `local_llm_gui_config.json` next to the program. On launch the GUI seeds defaults, merges in any variables defined in `NVFP4.bat`, then overlays saved JSON. Only the **llama directory** and **model path** are strictly required; everything else is optional and only added to the command line when set.
 
-Named parameter files (**profiles**) can be saved and loaded via the **Load Profile…** / **Save Profile As…** buttons — see [Parameter Profiles](#parameter-profiles-named-parameter-files).
+Named parameter files (**profiles**) can be saved and loaded via the **Load Profile…** / **Save Profile As…** buttons in both the GUI and the Web UI — see [Parameter Profiles](#parameter-profiles-named-parameter-files).
 
 ### Basic Parameters
 
@@ -106,7 +106,7 @@ Named parameter files (**profiles**) can be saved and loaded via the **Load Prof
 
 ### Parameter Profiles (named parameter files)
 
-Named parameter files live in the `params/` directory next to the program (e.g. `params/Qwen3.8-27B-NVFP4.json`). Each file is a plain JSON object of parameter key → value, in the same format as `local_llm_gui_config.json`.
+Named parameter files live in the `params/` directory next to the program (e.g. `params/Qwen3.8-27B-NVFP4.json`). Each file is a plain JSON object of parameter key → value, in the same format as `local_llm_gui_config.json`. Both the tkinter GUI and the Web UI support profiles and share the same `params/` directory.
 
 - **Load Profile…** — pick a `.json` profile and fill all fields with its values; the button row shows the active profile name.
 - **Save Profile As…** — save the current field values as a new named file (default location: `params/`). The newly saved file becomes the active profile.

@@ -9,6 +9,7 @@
 - 启动/停止 llama-server，日志实时回显，error 自动停止
 - 健康检查、GPU/MEM 实时状态、累计 token 数
 - 配置保存/恢复默认（复用 local_llm_gui_config.json）
+- 参数文件（profile）加载/保存（params/ 目录，与 tkinter 版一致）
 """
 import json
 import os
@@ -33,6 +34,8 @@ else:  # 直接运行脚本
     SCRIPT_DIR = Path(__file__).resolve().parent
 BAT_PATH = SCRIPT_DIR / "NVFP4.bat"
 CONFIG_PATH = SCRIPT_DIR / "local_llm_gui_config.json"
+# 命名参数文件（profile）存放目录
+PARAMS_DIR = SCRIPT_DIR / "params"
 
 # ============================================================
 # 参数分组：(key, 标签, 说明)
@@ -228,10 +231,38 @@ def load_saved_config():
     return data
 
 
-def save_config(values):
+def save_config(values, target=None):
+    """保存参数：target 为当前参数文件（profile），None 时写默认配置文件。"""
     current = {k: str(values.get(k, "")).strip() for k in DEFAULT_VALUES}
-    with CONFIG_PATH.open("w", encoding="utf-8") as f:
+    target = Path(target) if target else CONFIG_PATH
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("w", encoding="utf-8") as f:
         json.dump(current, f, ensure_ascii=False, indent=2)
+
+
+def _safe_profile_name(name):
+    """校验 profile 文件名：仅允许 params/ 下的 .json，禁止路径穿越。"""
+    name = str(name).strip()
+    if not name or ".." in name or "/" in name or "\\" in name or name.startswith("."):
+        return None
+    if not name.lower().endswith(".json"):
+        name += ".json"
+    if name == ".json":
+        return None
+    return name
+
+
+def load_profile_params(path):
+    """加载 profile 文件：默认值 + bat 变量 + profile 覆盖（与 load_saved_config 一致）。"""
+    data = load_defaults()
+    raw = _collect_bat_vars()
+    with Path(path).open("r", encoding="utf-8") as f:
+        saved = json.load(f)
+    for key, value in saved.items():
+        if key in data:
+            # 修复历史脏数据：剥离引号 + 展开 %VAR%
+            data[key] = _expand(_clean_value(value), raw)
+    return data
 
 
 # ============================================================
@@ -263,6 +294,7 @@ class Manager:
         self.total_tokens = 0
         self.status = "stopped"          # stopped / starting / running
         self.url = ""
+        self.current_profile = None      # 当前加载的参数文件（None = 默认配置）
 
     # ---------- 日志 ----------
     def append_log(self, message):
@@ -403,7 +435,7 @@ class Manager:
             except (ValueError, FileNotFoundError) as exc:
                 self.append_log(f"Start failed: {exc}")
                 return False, str(exc)
-            save_config(v)
+            save_config(v, target=self.current_profile)
             cmd = self.build_command(v)
             self.append_log("Preparing to start llama-server ...")
             self.append_log("Command: " + " ".join(cmd))
@@ -558,7 +590,8 @@ def api_init():
              "picker": PICKERS.get(k)}
             for k, label, hint in g["fields"]
         ]
-    return jsonify(groups=groups, params=load_saved_config())
+    return jsonify(groups=groups, params=load_saved_config(),
+                   profile=MANAGER.current_profile.name if MANAGER.current_profile else None)
 
 
 @app.get("/api/state")
@@ -618,9 +651,10 @@ def api_stop():
 @app.post("/api/save")
 def api_save():
     values = request.get_json(force=True, silent=True) or {}
+    target = MANAGER.current_profile
     try:
-        save_config(values)
-        MANAGER.append_log(f"Config saved: {CONFIG_PATH.name}")
+        save_config(values, target=target)
+        MANAGER.append_log(f"Config saved: {(target or CONFIG_PATH).name}")
         return jsonify(ok=True)
     except Exception as exc:
         MANAGER.append_log(f"Failed to save config: {exc}")
@@ -632,6 +666,60 @@ def api_reset():
     params = load_defaults()
     MANAGER.append_log("Restored default parameters.")
     return jsonify(params=params)
+
+
+# ============================================================
+# 参数文件（profile）加载 / 保存
+# ============================================================
+@app.get("/api/profiles")
+def api_profiles():
+    """列出 params/ 目录下的参数文件。"""
+    PARAMS_DIR.mkdir(parents=True, exist_ok=True)
+    out = []
+    for p in sorted(PARAMS_DIR.glob("*.json")):
+        try:
+            out.append({"name": p.name, "mtime": int(p.stat().st_mtime)})
+        except OSError:
+            continue
+    return jsonify(profiles=out,
+                   current=MANAGER.current_profile.name if MANAGER.current_profile else None)
+
+
+@app.post("/api/load-profile")
+def api_load_profile():
+    body = request.get_json(force=True, silent=True) or {}
+    name = _safe_profile_name(body.get("name", ""))
+    if not name:
+        return jsonify(ok=False, error="Invalid profile name")
+    p = PARAMS_DIR / name
+    if not p.exists():
+        MANAGER.append_log(f"Profile not found: {name}")
+        return jsonify(ok=False, error=f"Profile not found: {name}")
+    try:
+        data = load_profile_params(p)
+    except Exception as exc:
+        MANAGER.append_log(f"Failed to load profile {name}: {exc}")
+        return jsonify(ok=False, error=str(exc))
+    MANAGER.current_profile = p
+    MANAGER.append_log(f"Loaded profile {p.name}.")
+    return jsonify(ok=True, params=data, current=p.name)
+
+
+@app.post("/api/save-profile")
+def api_save_profile():
+    body = request.get_json(force=True, silent=True) or {}
+    name = _safe_profile_name(body.get("name", ""))
+    if not name:
+        return jsonify(ok=False, error="Invalid profile name")
+    p = PARAMS_DIR / name
+    try:
+        save_config(body.get("values") or {}, target=p)
+        MANAGER.current_profile = p
+        MANAGER.append_log(f"Profile saved: {p.name}")
+        return jsonify(ok=True, current=p.name)
+    except Exception as exc:
+        MANAGER.append_log(f"Failed to save profile: {exc}")
+        return jsonify(ok=False, error=str(exc))
 
 
 @app.post("/api/quit")
@@ -711,7 +799,9 @@ main { flex:1; display:flex; flex-direction:column; gap:12px; padding:0 18px 14p
 .btn.small { padding:6px 10px; font-size:12px; }
 .btn.start { background:var(--green); color:#fff; } .btn.start:hover { background:#5fd87d; }
 .btn.stop { background:var(--red); color:#fff; } .btn.stop:hover { background:#ff6b60; }
-#btnrow { display:flex; gap:8px; padding:0 18px 10px; }
+.btn:disabled { opacity:.55; cursor:default; }
+#btnrow { display:flex; gap:8px; padding:0 18px 10px; align-items:center; }
+#profileLabel { margin-left:auto; color:var(--dim); font-weight:700; font-size:12px; white-space:nowrap; }
 #logpanel { height:38%; min-height:200px; display:flex; flex-direction:column;
             background:var(--panel); border-radius:8px; padding:10px; min-height:0; }
 #loghead { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
@@ -755,6 +845,9 @@ main { flex:1; display:flex; flex-direction:column; gap:12px; padding:0 18px 14p
   <button id="btnToggle" class="btn start">▶  Start</button>
   <button id="btnSave" class="btn">Save Config</button>
   <button id="btnReset" class="btn">Reset Defaults</button>
+  <button id="btnLoadProfile" class="btn">Load Profile…</button>
+  <button id="btnSaveProfile" class="btn">Save Profile As…</button>
+  <span id="profileLabel"></span>
 </div>
 <main>
   <section id="params"></section>
@@ -772,7 +865,7 @@ main { flex:1; display:flex; flex-direction:column; gap:12px; padding:0 18px 14p
 <div id="modal" class="modal-bg hidden">
   <div class="modal">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-      <b>Browse</b><span id="mPath"></span>
+      <b id="mTitle">Browse</b><span id="mPath"></span>
     </div>
     <div id="mList"></div>
     <div style="display:flex;justify-content:flex-end;margin-top:10px;">
@@ -781,7 +874,7 @@ main { flex:1; display:flex; flex-direction:column; gap:12px; padding:0 18px 14p
   </div>
 </div>
 <script>
-let groups = [], params = {}, lastLogId = 0, running = false;
+let groups = [], params = {}, lastLogId = 0, running = false, currentProfile = null;
 let browseKey = null, browseType = null;
 
 const $ = id => document.getElementById(id);
@@ -799,6 +892,12 @@ function collectParams() {
     if (e) params[k] = e.value;
   }
   return params;
+}
+
+function updateProfileLabel() {
+  $("profileLabel").textContent = currentProfile
+    ? "Profile: " + currentProfile
+    : "Profile: local_llm_gui_config.json (default)";
 }
 
 function renderGroups() {
@@ -856,6 +955,8 @@ async function pollState() {
     btn.textContent = running ? "■  Stop" : "▶  Start";
     btn.className = "btn " + (running ? "stop" : "start");
     document.querySelectorAll(".entry").forEach(e => e.disabled = running);
+    $("btnLoadProfile").disabled = running;
+    $("btnSaveProfile").disabled = running;
   } catch (e) { /* server restarting */ }
 }
 
@@ -882,11 +983,62 @@ async function pollLogs() {
 // ---------- 浏览（文件/目录选择） ----------
 async function openBrowse(key, type) {
   browseKey = key; browseType = type;
+  $("mTitle").textContent = "Browse";
   const start = params[key] ? "?path=" + encodeURIComponent(params[key]) : "";
   await loadBrowse(start);
   $("modal").classList.remove("hidden");
 }
 function closeModal() { $("modal").classList.add("hidden"); }
+
+// ---------- 参数文件（profile）加载 / 保存 ----------
+async function openProfileList() {
+  browseKey = null; browseType = "profile";
+  $("mTitle").textContent = "Load Profile (params/)";
+  const r = await jget("/api/profiles");
+  $("mPath").textContent = r.current ? "active: " + r.current : "no active profile";
+  const list = $("mList");
+  list.innerHTML = "";
+  if (!r.profiles.length) {
+    const it = el("div", "hint");
+    it.textContent = "No profiles yet — use Save Profile As… first.";
+    list.appendChild(it);
+  }
+  for (const p of r.profiles) {
+    const it = el("div", "item" + (p.name === r.current ? " select" : ""));
+    it.textContent = p.name;
+    it.title = new Date(p.mtime * 1000).toLocaleString();
+    it.onclick = async () => {
+      const res = await jpost("/api/load-profile", { name: p.name });
+      if (res.ok) {
+        Object.assign(params, res.params);
+        for (const k in params) { const e = $("f_" + k); if (e) e.value = params[k]; }
+        currentProfile = res.current;
+        updateProfileLabel();
+      } else {
+        alert("Failed to load profile: " + (res.error || ""));
+      }
+      closeModal();
+    };
+    list.appendChild(it);
+  }
+  $("modal").classList.remove("hidden");
+}
+
+$("btnLoadProfile").onclick = openProfileList;
+$("btnSaveProfile").onclick = async () => {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  const def = `profile_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.json`;
+  const name = prompt("Save parameter profile as (file name in params/):", def);
+  if (!name) return;
+  const res = await jpost("/api/save-profile", { name, values: collectParams() });
+  if (res.ok) {
+    currentProfile = res.current;
+    updateProfileLabel();
+  } else {
+    alert("Failed to save profile: " + (res.error || ""));
+  }
+};
 
 async function loadBrowse(query) {
   const r = await jget("/api/browse" + query);
@@ -965,7 +1117,9 @@ $("mClose").onclick = closeModal;$("btnQuit").onclick = async () => {
   const data = await jget("/api/init");
   groups = data.groups;
   params = data.params;
+  currentProfile = data.profile || null;
   renderGroups();
+  updateProfileLabel();
   pollState();
   setInterval(pollState, 2000);
   pollLogs();
