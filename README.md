@@ -53,6 +53,8 @@ The output lands in `dist\LocalLLMManager.exe`.
 
 Values are stored in `local_llm_gui_config.json` next to the program. On launch the GUI seeds defaults, merges in any variables defined in `NVFP4.bat`, then overlays saved JSON. Only the **llama directory** and **model path** are strictly required; everything else is optional and only added to the command line when set.
 
+Named parameter files (**profiles**) can be saved and loaded via the **Load Profile…** / **Save Profile As…** buttons — see [Parameter Profiles](#parameter-profiles-named-parameter-files).
+
 ### Basic Parameters
 
 | Key | Label | Description | Default |
@@ -102,6 +104,17 @@ Values are stored in `local_llm_gui_config.json` next to the program. On launch 
 | `START_TIMEOUT_S` | Start Timeout (s) | Timeout waiting for the server to be ready | `180` |
 | `API_KEY` | API Key | `--api-key` access key | *(empty)* |
 
+### Parameter Profiles (named parameter files)
+
+Named parameter files live in the `params/` directory next to the program (e.g. `params/Qwen3.8-27B-NVFP4.json`). Each file is a plain JSON object of parameter key → value, in the same format as `local_llm_gui_config.json`.
+
+- **Load Profile…** — pick a `.json` profile and fill all fields with its values; the button row shows the active profile name.
+- **Save Profile As…** — save the current field values as a new named file (default location: `params/`). The newly saved file becomes the active profile.
+- While a profile is active, **Save Config**, the auto-save on Start, and the auto-save on close all write to that profile file instead of `local_llm_gui_config.json`. With no profile loaded, behavior is unchanged (default config file).
+- Loading a profile while the server is running is blocked — stop the server first.
+
+Typical workflow: keep one profile per model — **Load Profile…** → press **Start**, then after tuning use **Save Profile As…** to store the tuned set for next time.
+
 ## Usage
 
 1. Fill in **llama Dir** (folder containing `llama-server.exe`) and **Model** (GGUF path) — use the `Browse…` buttons.
@@ -117,6 +130,7 @@ Values are stored in `local_llm_gui_config.json` next to the program. On launch 
 Local-LLM-Manager/
 ├── local_llm_gui.py            # the GUI application (single file)
 ├── local_llm_gui_config.json   # saved parameters (gitignored, user-edited)
+├── params/                     # named parameter profiles (gitignored, user-created)
 ├── NVFP4.bat                   # optional variable source for defaults
 ├── run_local_llm_gui.bat       # convenience launcher
 ├── LocalLLMManager.spec        # PyInstaller spec (gitignored)

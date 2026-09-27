@@ -12,3 +12,6 @@ __pycache__/
 # 本地运行配置（用户本地保存的参数）
 local_llm_gui_config.json
 NVFP4.bat
+
+# 命名参数文件（profile，用户本地保存）
+params/

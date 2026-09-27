@@ -18,6 +18,8 @@ else:  # 直接运行脚本
     SCRIPT_DIR = Path(__file__).resolve().parent
 BAT_PATH = SCRIPT_DIR / "NVFP4.bat"
 CONFIG_PATH = SCRIPT_DIR / "local_llm_gui_config.json"
+# 命名参数文件（profile）存放目录
+PARAMS_DIR = SCRIPT_DIR / "params"
 
 # ============================================================
 # 主题配色（深色现代风格）
@@ -159,6 +161,8 @@ class LLMManagerGUI:
         self.closing = False
         self.config = self.load_defaults()
         self.entries = {}
+        # 当前加载的参数文件（None = 默认配置文件）
+        self.current_profile = None
         self.status_var = tk.StringVar(value="● Stopped")
         # token counter
         self.total_tokens = 0
@@ -322,7 +326,8 @@ class LLMManagerGUI:
         except Exception:
             self.append_log("Failed to load saved config. Falling back to defaults.")
 
-    def save_config(self):
+    def _collect_current_values(self):
+        """收集所有参数框的当前值。"""
         current = {}
         for key in DEFAULT_VALUES:
             if key not in self.entries:
@@ -332,12 +337,19 @@ class LLMManagerGUI:
             except tk.TclError:
                 # 控件已销毁（窗口关闭中），跳过
                 continue
+        return current
+
+    def save_config(self):
+        """保存当前参数：加载了参数文件则写入该文件，否则写入默认配置文件。"""
+        current = self._collect_current_values()
         if not current:
             return
+        target = self.current_profile if self.current_profile is not None else CONFIG_PATH
         try:
-            with CONFIG_PATH.open("w", encoding="utf-8") as f:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with target.open("w", encoding="utf-8") as f:
                 json.dump(current, f, ensure_ascii=False, indent=2)
-            self.append_log(f"Config saved: {CONFIG_PATH.name}")
+            self.append_log(f"Config saved: {target.name}")
         except Exception as exc:
             self.append_log(f"Failed to save config: {exc}")
 
@@ -347,6 +359,90 @@ class LLMManagerGUI:
                 self.entries[key].delete(0, tk.END)
                 self.entries[key].insert(0, str(value))
         self.append_log("Restored default parameters.")
+
+    # ------------------------------------------------------------
+    # 参数文件（profile）加载 / 保存
+    # ------------------------------------------------------------
+    def update_profile_label(self):
+        """更新按钮行显示的当前参数文件名。"""
+        if self.current_profile is None:
+            text = f"Profile: {CONFIG_PATH.name} (default)"
+        else:
+            text = f"Profile: {self.current_profile.name}"
+        try:
+            self.profile_label.configure(text=text)
+        except (tk.TclError, AttributeError):
+            pass
+
+    def load_profile(self, path):
+        """加载参数文件，填充所有参数框。"""
+        if self.process is not None and self.process.poll() is None:
+            self.append_log("Stop the server before loading a different profile.")
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as exc:
+            self.append_log(f"Failed to load profile {path}: {exc}")
+            return
+        if not isinstance(data, dict):
+            self.append_log(f"Invalid profile file (expected a JSON object): {path}")
+            return
+        raw = self._collect_bat_vars()
+        applied = 0
+        for key, value in data.items():
+            if key in self.entries:
+                # 与默认配置加载一致：剥离引号 + 展开 %VAR%
+                clean = self._expand(self._clean_value(value), raw)
+                self.entries[key].delete(0, tk.END)
+                self.entries[key].insert(0, clean)
+                applied += 1
+        self.current_profile = Path(path).resolve()
+        self.update_profile_label()
+        self.append_log(f"Loaded profile {self.current_profile.name} ({applied} parameters applied).")
+
+    def load_profile_dialog(self):
+        """打开文件对话框选择参数文件。"""
+        import tkinter.filedialog as fd
+        PARAMS_DIR.mkdir(parents=True, exist_ok=True)
+        path = fd.askopenfilename(
+            title="Load Parameter Profile",
+            initialdir=str(PARAMS_DIR),
+            filetypes=[("JSON profile", "*.json"), ("All files", "*.*")],
+        )
+        if path:
+            self.load_profile(path)
+
+    def save_profile(self, path):
+        """把当前参数保存为参数文件。"""
+        current = self._collect_current_values()
+        if not current:
+            return
+        try:
+            path = Path(path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("w", encoding="utf-8") as f:
+                json.dump(current, f, ensure_ascii=False, indent=2)
+            self.current_profile = path.resolve()
+            self.update_profile_label()
+            self.append_log(f"Profile saved: {path.name}")
+        except Exception as exc:
+            self.append_log(f"Failed to save profile: {exc}")
+
+    def save_profile_as_dialog(self):
+        """打开保存对话框，把当前参数存为新的参数文件。"""
+        import tkinter.filedialog as fd
+        PARAMS_DIR.mkdir(parents=True, exist_ok=True)
+        default_name = f"profile_{time.strftime('%Y%m%d_%H%M%S')}.json"
+        path = fd.asksaveasfilename(
+            title="Save Parameter Profile As",
+            defaultextension=".json",
+            initialdir=str(PARAMS_DIR),
+            initialfile=default_name,
+            filetypes=[("JSON profile", "*.json"), ("All files", "*.*")],
+        )
+        if path:
+            self.save_profile(path)
 
     # ------------------------------------------------------------
     # 文件 / 目录选择
@@ -490,7 +586,18 @@ class LLMManagerGUI:
         self.btn_save = ttk.Button(btn_row, text="Save Config", command=self.save_config)
         self.btn_save.pack(side=tk.LEFT, padx=(0, 8))
         self.btn_reset = ttk.Button(btn_row, text="Reset Defaults", command=self.reset_defaults)
-        self.btn_reset.pack(side=tk.LEFT)
+        self.btn_reset.pack(side=tk.LEFT, padx=(0, 8))
+        self.btn_load_profile = ttk.Button(btn_row, text="Load Profile…",
+                                           command=self.load_profile_dialog)
+        self.btn_load_profile.pack(side=tk.LEFT, padx=(0, 8))
+        self.btn_save_profile = ttk.Button(btn_row, text="Save Profile As…",
+                                           command=self.save_profile_as_dialog)
+        self.btn_save_profile.pack(side=tk.LEFT)
+        # 当前参数文件名（按钮行右侧）
+        self.profile_label = ttk.Label(btn_row, text="", style="Dim.TLabel",
+                                       font=(self.ui_font, 10, "bold"))
+        self.profile_label.pack(side=tk.RIGHT)
+        self.update_profile_label()
 
         # 日志卡片（填充按钮行下方的剩余空间）
         log_card = ttk.Frame(bottom, style="Card.TFrame", padding=10)
@@ -961,6 +1068,8 @@ class LLMManagerGUI:
             self._update_toggle_button(running=True)
             self.btn_save.configure(state="disabled")
             self.btn_reset.configure(state="disabled")
+            self.btn_load_profile.configure(state="disabled")
+            self.btn_save_profile.configure(state="disabled")
             threading.Thread(target=self._read_output, daemon=True).start()
             self.root.after(1000, self.poll_health)
         except (ValueError, FileNotFoundError) as exc:
@@ -1017,6 +1126,8 @@ class LLMManagerGUI:
                 self._update_toggle_button(running=False)
                 self.btn_save.configure(state="normal")
                 self.btn_reset.configure(state="normal")
+                self.btn_load_profile.configure(state="normal")
+                self.btn_save_profile.configure(state="normal")
                 self.process = None
 
     def poll_health(self):
@@ -1103,6 +1214,8 @@ class LLMManagerGUI:
             self._update_toggle_button(running=False)
             self.btn_save.configure(state="normal")
             self.btn_reset.configure(state="normal")
+            self.btn_load_profile.configure(state="normal")
+            self.btn_save_profile.configure(state="normal")
 
     def on_close(self, event=None):
         if self.closing:
