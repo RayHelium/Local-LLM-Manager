@@ -46,6 +46,7 @@ GROUP_BASE = [
 GROUP_MODEL = [
     ("MODEL_PATH", "Model", "GGUF model path (required)"),
     ("MMPROJ_PATH", "Vision Proj", "mmproj file path (optional)"),
+    ("MMPROJ_NO_OFFLOAD", "MMProj No Offload", "--no-mmproj-offload, on/off (optional)"),
     ("CHAT_TEMPLATE", "Chat Template", "Jinja template path (optional)"),
     ("CTX_SIZE", "Context Size", "Context size"),
     ("REASONING", "Reasoning", "--reasoning, on/off (optional)"),
@@ -98,6 +99,7 @@ DEFAULT_VALUES = {
     "MODEL_PATH": "",
     # 可选：视觉投影 / 聊天模板（留空则不启用）
     "MMPROJ_PATH": "",
+    "MMPROJ_NO_OFFLOAD": "",
     "CHAT_TEMPLATE": "",
     "HOST": "0.0.0.0",
     "PORT": "8080",
@@ -868,6 +870,8 @@ class LLMManagerGUI:
             cmd += ["-ctv", v["CTV"]]
         if v["MMPROJ_PATH"]:
             cmd += ["--mmproj", v["MMPROJ_PATH"]]
+            if v["MMPROJ_NO_OFFLOAD"].lower() == "on":
+                cmd += ["--no-mmproj-offload"]
         if v["CHAT_TEMPLATE"]:
             cmd += ["--chat-template-file", v["CHAT_TEMPLATE"]]
         if v["ALIAS"]:
