@@ -802,7 +802,7 @@ main { flex:1; display:flex; flex-direction:column; gap:12px; padding:0 18px 14p
 .btn:disabled { opacity:.55; cursor:default; }
 #btnrow { display:flex; gap:8px; padding:0 18px 10px; align-items:center; }
 #profileLabel { margin-left:auto; color:var(--dim); font-weight:700; font-size:12px; white-space:nowrap; }
-#logpanel { height:38%; min-height:200px; display:flex; flex-direction:column;
+#logpanel { height:50%; min-height:200px; display:flex; flex-direction:column;
             background:var(--panel); border-radius:8px; padding:10px; min-height:0; }
 #loghead { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
 #loghead b { font-size:13px; }
